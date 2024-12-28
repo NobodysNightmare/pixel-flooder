@@ -86,5 +86,9 @@ func handleError(err error) {
 }
 
 func (m Pixel) AsSetMessage() []byte {
+	if m.A < 255 {
+		return []byte(fmt.Sprintf("PX %d %d %02x%02x%02x%02x\n", m.X, m.Y, m.R, m.G, m.B, m.A))
+	}
+
 	return []byte(fmt.Sprintf("PX %d %d %02x%02x%02x\n", m.X, m.Y, m.R, m.G, m.B))
 }
