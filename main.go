@@ -61,6 +61,8 @@ func main() {
 		return aScore - bScore
 	})
 
+	fmt.Println("Prepared", len(pixels), "pixels!")
+
 	fmt.Println("Connecting to server...")
 	connection, err := net.Dial("tcp", "localhost:1337")
 	handleError(err)
