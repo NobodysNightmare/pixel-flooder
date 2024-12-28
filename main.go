@@ -6,6 +6,7 @@ import (
 	"image/png"
 	"net"
 	"os"
+	"slices"
 	"strconv"
 )
 
@@ -53,6 +54,12 @@ func main() {
 			}
 		}
 	}
+
+	slices.SortStableFunc(pixels, func(a, b Pixel) int {
+		aScore := (a.X % 2) + (a.Y % 2)
+		bScore := (b.X % 2) + (b.Y % 2)
+		return aScore - bScore
+	})
 
 	fmt.Println("Connecting to server...")
 	connection, err := net.Dial("tcp", "localhost:1337")
