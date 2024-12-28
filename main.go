@@ -8,6 +8,7 @@ import (
 	"os"
 	"slices"
 	"strconv"
+	"time"
 )
 
 type Pixel struct {
@@ -68,10 +69,29 @@ func main() {
 	handleError(err)
 	defer connection.Close()
 
+	renderedFrames := 0
+	lastWritten := 0
+	thisWritten := 0
+	lastCheckpoint := time.Now()
 	for {
 		for _, p := range pixels {
-			_, err = connection.Write(p.AsSetMessage())
+			n, err := connection.Write(p.AsSetMessage())
+			fmt.Println(n)
 			handleError(err)
+
+			thisWritten += n
+		}
+
+		renderedFrames++
+		if renderedFrames%100 == 0 {
+			thisCheckpoint := time.Now()
+			fmt.Printf(
+				"\rRendering at %4d FPS (%4d MiB/s)",
+				int(100/thisCheckpoint.Sub(lastCheckpoint).Seconds()),
+				int(float64(thisWritten-lastWritten)/thisCheckpoint.Sub(lastCheckpoint).Seconds()/float64(1024*1024)),
+			)
+			lastCheckpoint = thisCheckpoint
+			lastWritten = thisWritten
 		}
 	}
 }
