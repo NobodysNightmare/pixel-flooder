@@ -64,6 +64,12 @@ func main() {
 
 	fmt.Println("Prepared", len(pixels), "pixels!")
 
+	var frame []byte
+
+	for _, p := range pixels {
+		frame = append(frame, p.AsSetMessage()...)
+	}
+
 	fmt.Println("Connecting to server...")
 	connection, err := net.Dial("tcp", "localhost:1337")
 	handleError(err)
@@ -74,13 +80,10 @@ func main() {
 	thisWritten := 0
 	lastCheckpoint := time.Now()
 	for {
-		for _, p := range pixels {
-			n, err := connection.Write(p.AsSetMessage())
-			fmt.Println(n)
-			handleError(err)
+		n, err := connection.Write(frame)
+		handleError(err)
 
-			thisWritten += n
-		}
+		thisWritten += n
 
 		renderedFrames++
 		if renderedFrames%100 == 0 {
