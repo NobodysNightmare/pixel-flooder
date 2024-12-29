@@ -8,31 +8,77 @@ import (
 	"os"
 	"slices"
 	"strconv"
+	"strings"
 	"time"
+
+	"github.com/urfave/cli/v2"
 )
 
 type Pixel struct {
 	X, Y, R, G, B, A int
 }
 
+type Offset struct {
+	X, Y int
+}
+
+type Config struct {
+	FileName           string
+	RemoteAddress      string
+	Offsets            []Offset
+	TransparencyCutoff int
+}
+
+var config Config
+
 func main() {
-	if len(os.Args) < 2 {
-		fmt.Println("Please at least provide a file name for a PNG!")
-		os.Exit(1)
+	app := &cli.App{
+		Name:  "boom",
+		Usage: "make an explosive entrance",
+		Flags: []cli.Flag{
+			&cli.StringFlag{
+				Name:  "image",
+				Usage: "Path to the PNG image that shall be used",
+			},
+			&cli.StringSliceFlag{
+				Name:  "offset",
+				Usage: "Pass offsets that should be rendered in format XxY",
+			},
+		},
+		Action: func(cCtx *cli.Context) error {
+			config.RemoteAddress = "wall.c3pixelflut.de:1337"
+			config.FileName = cCtx.String("image")
+			config.TransparencyCutoff = 10
+
+			if len(cCtx.StringSlice("offset")) == 0 {
+				config.Offsets = append(config.Offsets, Offset{0, 0})
+			} else {
+				for _, offset := range cCtx.StringSlice("offset") {
+					values := strings.Split(offset, "x") // TODO: why does , not work?
+					x, _ := strconv.Atoi(values[0])
+					y, _ := strconv.Atoi(values[1])
+					config.Offsets = append(config.Offsets, Offset{x, y})
+				}
+			}
+
+			if len(config.FileName) == 0 {
+				fmt.Println("Please at least provide a file name for a PNG using --image!")
+				os.Exit(1)
+			}
+
+			render()
+
+			return nil
+		},
 	}
 
-	remoteAddress := "localhost:1337"
-	fileName := os.Args[1]
-	dx := 0
-	dy := 0
-	transparencyCutoff := 10
-
-	if len(os.Args) >= 4 {
-		dx, _ = strconv.Atoi(os.Args[2])
-		dy, _ = strconv.Atoi(os.Args[3])
+	if err := app.Run(os.Args); err != nil {
+		fmt.Println(err)
 	}
+}
 
-	file, err := os.Open(fileName)
+func render() {
+	file, err := os.Open(config.FileName)
 	handleError(err)
 	defer file.Close()
 
@@ -52,7 +98,7 @@ func main() {
 			r, g, b, a := image.At(x, y).RGBA()
 			p := Pixel{X: x - minX, Y: y - minY, R: int(r / 256), G: int(g / 256), B: int(b / 256), A: int(a / 256)}
 
-			if p.A > transparencyCutoff {
+			if p.A > config.TransparencyCutoff {
 				pixels = append(pixels, p)
 			}
 		}
@@ -75,21 +121,21 @@ func main() {
 	fmt.Printf("Prepared full network frame (%d kiB)\n", len(frame)/1024)
 
 	fmt.Println("Connecting to server...")
-	connection, err := net.Dial("tcp", remoteAddress)
+	connection, err := net.Dial("tcp", config.RemoteAddress)
 	handleError(err)
 	defer connection.Close()
-
-	_, err = connection.Write([]byte(fmt.Sprintf("OFFSET %d %d\n", dx, dy)))
-	handleError(err)
 
 	renderedFrames := 0
 	lastWritten := 0
 	thisWritten := 0
 	lastCheckpoint := time.Now()
 	for {
-		n, err := connection.Write(frame)
+		n, err := connection.Write(config.Offsets[renderedFrames%len(config.Offsets)].AsMessage())
 		handleError(err)
+		thisWritten += n
 
+		n, err = connection.Write(frame)
+		handleError(err)
 		thisWritten += n
 
 		renderedFrames++
@@ -121,4 +167,8 @@ func (m Pixel) AsSetMessage() []byte {
 	}
 
 	return []byte(fmt.Sprintf("PX %d %d %02x%02x%02x\n", m.X, m.Y, m.R, m.G, m.B))
+}
+
+func (o Offset) AsMessage() []byte {
+	return []byte(fmt.Sprintf("OFFSET %d %d\n", o.X, o.Y))
 }
