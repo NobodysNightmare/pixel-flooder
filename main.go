@@ -37,6 +37,10 @@ func main() {
 		Usage: "make an explosive entrance",
 		Flags: []cli.Flag{
 			&cli.StringFlag{
+				Name:  "remote",
+				Usage: "host:port pair for the remote that you want to connect to",
+			},
+			&cli.StringFlag{
 				Name:  "image",
 				Usage: "Path to the PNG image that shall be used",
 			},
@@ -46,7 +50,7 @@ func main() {
 			},
 		},
 		Action: func(cCtx *cli.Context) error {
-			config.RemoteAddress = "wall.c3pixelflut.de:1337"
+			config.RemoteAddress = cCtx.String("remote")
 			config.FileName = cCtx.String("image")
 			config.TransparencyCutoff = 10
 
