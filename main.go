@@ -21,9 +21,11 @@ func main() {
 		os.Exit(1)
 	}
 
+	remoteAddress := "localhost:1337"
 	fileName := os.Args[1]
 	dx := 0
 	dy := 0
+	transparencyCutoff := 10
 
 	if len(os.Args) >= 4 {
 		dx, _ = strconv.Atoi(os.Args[2])
@@ -50,7 +52,7 @@ func main() {
 			r, g, b, a := image.At(x, y).RGBA()
 			p := Pixel{X: x - minX + dx, Y: y - minY + dy, R: int(r / 256), G: int(g / 256), B: int(b / 256), A: int(a / 256)}
 
-			if p.A > 0 {
+			if p.A > transparencyCutoff {
 				pixels = append(pixels, p)
 			}
 		}
@@ -62,7 +64,7 @@ func main() {
 		return aScore - bScore
 	})
 
-	fmt.Println("Prepared", len(pixels), "pixels!")
+	fmt.Println("Prepared", len(pixels), "pixels")
 
 	var frame []byte
 
@@ -70,8 +72,10 @@ func main() {
 		frame = append(frame, p.AsSetMessage()...)
 	}
 
+	fmt.Printf("Prepared full network frame (%d kiB)\n", len(frame)/1024)
+
 	fmt.Println("Connecting to server...")
-	connection, err := net.Dial("tcp", "localhost:1337")
+	connection, err := net.Dial("tcp", remoteAddress)
 	handleError(err)
 	defer connection.Close()
 
